@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright 2019, Intel Corporation
+# Copyright 2018-2019, Intel Corporation
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -31,58 +31,34 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #
-# run-build.sh - is called inside a Docker container,
-#                starts pmemkv build with tests.
+# run-coverity.sh - runs the Coverity scan build
 #
 
 set -e
-echo $USERPASS | sudo -S mount -oremount,size=4G /dev/shm
-
-function cleanup() {
-	find . -name ".coverage" -exec rm {} \;
-	find . -name "coverage.xml" -exec rm {} \;
-	find . -name "*.gcov" -exec rm {} \;
-	find . -name "*.gcda" -exec rm {} \;
-}
-
-function upload_codecov() {
-	clang_used=$(cmake -LA -N . | grep CMAKE_CXX_COMPILER | grep clang | wc -c)
-
-	if [[ $clang_used > 0 ]]; then
-		gcovexe="llvm-cov gcov"
-	else
-		gcovexe="gcov"
-	fi
-
-	# the output is redundant in this case, i.e. we rely on parsed report from codecov on github
-	bash <(curl -s https://codecov.io/bash) -c -F $1 -x "$gcovexe"
-	cleanup
-}
 
 cd $WORKDIR
-PREFIX=/usr/local
 
-# make & install
-mkdir bin
-cd bin
-cmake .. -DCMAKE_BUILD_TYPE=Release \
-	-DTBB_DIR=/opt/tbb/cmake \
-	-DCMAKE_INSTALL_PREFIX=$PREFIX \
-	-DCOVERAGE=$COVERAGE
-cd ..
-make test
-echo $USERPASS | sudo -S make install
+export COVERITY_SCAN_PROJECT_NAME="$TRAVIS_REPO_SLUG"
+[[ "$TRAVIS_EVENT_TYPE" == "cron" ]] \
+	&& export COVERITY_SCAN_BRANCH_PATTERN="master" \
+	|| export COVERITY_SCAN_BRANCH_PATTERN="coverity_scan"
+export COVERITY_SCAN_BUILD_COMMAND="make"
 
-if [ "$COVERAGE" = "1" ]; then
-	upload_codecov tests
-fi
+# Run the Coverity scan
 
-# verify installed package
-LIBFILE=$PREFIX/lib/libpmemkv.so
-HEADERFILE=$PREFIX/include/libpmemkv.h
+# XXX: Patch the Coverity script.
+# Recently, this script regularly exits with an error, even though
+# the build is successfully submitted.  Probably because the status code
+# is missing in response, or it's not 201.
+# Changes:
+# 1) change the expected status code to 200 and
+# 2) print the full response string.
+#
+# This change should be reverted when the Coverity script is fixed.
+#
+# The previous version was:
+# curl -s https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh | bash
 
-if [[ -f $LIBFILE && -f $HEADERFILE ]]; then
-	echo "Correctly installed"
-else
-	echo "Installation not successful"
-fi
+wget https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh
+patch < ../utils/docker/0001-travis-fix-travisci_build_coverity_scan.sh.patch
+bash ./travisci_build_coverity_scan.sh
