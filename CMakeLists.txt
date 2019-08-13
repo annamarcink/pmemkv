@@ -113,6 +113,8 @@ set(SOURCE_FILES
 	src/engine.cc
 	src/engines/blackhole.cc
 	src/engines/blackhole.h
+	src/engines/engine_set.cc
+	src/engines/engine_set.h
 	src/out.cc
 	src/out.h
 )

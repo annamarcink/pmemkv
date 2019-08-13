@@ -34,6 +34,10 @@
 
 #include "engines/blackhole.h"
 
+#ifdef ENGINE_SET
+#include "engines/engine_set.h"
+#endif
+
 #ifdef ENGINE_VSMAP
 #include "engines/vsmap.h"
 #endif
@@ -72,6 +76,10 @@ engine_base::~engine_base()
 }
 
 static constexpr const char *available_engines = "blackhole"
+
+#ifdef ENGINE_SET
+						 ", engine_set"
+#endif
 #ifdef ENGINE_CMAP
 						 ", cmap"
 #endif
@@ -99,6 +107,11 @@ engine_base::create_engine(const std::string &engine,
 	if (engine == "blackhole")
 		return std::unique_ptr<engine_base>(
 			new pmem::kv::blackhole(std::move(cfg)));
+#ifdef ENGINE_SET
+	if (engine == "engine_set")
+		return std::unique_ptr<engine_base>(
+			new pmem::kv::engine_set(std::move(cfg)));
+#endif
 
 #ifdef ENGINE_CMAP
 	if (engine == "cmap")
