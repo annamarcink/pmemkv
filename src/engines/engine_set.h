@@ -84,7 +84,8 @@ public:
 		if (engines.find(key) == engines.end()) {
 
 			pmem::obj::transaction::run(pmpool, [&] {
-				pmpool.root()->oids = pmem::obj::make_persistent<std::vector<std::pair<string_view, PMEMoid>>>();
+				pmpool.root()->oids = pmem::obj::make_persistent<
+					std::vector<std::pair<string_view, PMEMoid>>>();
 				pmpool.root()->oids->push_back(OID_NULL);
 			}
 		}
